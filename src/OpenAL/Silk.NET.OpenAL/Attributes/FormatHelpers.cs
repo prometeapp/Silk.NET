@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Linq;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Silk.NET.OpenAL.Attributes
@@ -18,13 +18,17 @@ namespace Silk.NET.OpenAL.Attributes
         /// <typeparam name="TFormat">The format type.</typeparam>
         /// <param name="format">The format.</param>
         /// <returns>The size.</returns>
-        public static int GetFormatSize<TFormat>(TFormat format)
+        public static int GetFormatSize
+            <[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TFormat>
+            (TFormat format)
             where TFormat : struct, Enum
         {
             var enumType = typeof(TFormat);
-            var member = enumType.GetMember(format.ToString()).First();
+            // GetField rather than GetMember: enum members are public static fields, and
+            // GetField only demands PublicFields of the trimmer instead of every member kind.
+            var member = enumType.GetField(format.ToString());
 
-            if (!(member.GetCustomAttribute(typeof(FormatSizeAttribute)) is FormatSizeAttribute sizeAttribute))
+            if (!(member?.GetCustomAttribute(typeof(FormatSizeAttribute)) is FormatSizeAttribute sizeAttribute))
             {
                 throw new InvalidOperationException("The given buffer format doesn't have a format size set.");
             }

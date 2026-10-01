@@ -16,5 +16,19 @@ namespace Silk.NET.Input.Glfw
                 InputWindowExtensions.Add(new GlfwInputPlatform());
             }
         }
+
+        /// <summary>
+        /// Registers this input platform and stops the first-party platforms from being
+        /// discovered via reflection.
+        /// </summary>
+        /// <remarks>
+        /// Pair this with <see cref="GlfwWindowing.Use"/> to keep every backend off the
+        /// reflection path, which is what lets the unused backends be trimmed away.
+        /// </remarks>
+        public static void Use() // for consistency with windowing
+        {
+            InputWindowExtensions.ShouldLoadFirstPartyPlatforms(false);
+            RegisterPlatform();
+        }
     }
 }

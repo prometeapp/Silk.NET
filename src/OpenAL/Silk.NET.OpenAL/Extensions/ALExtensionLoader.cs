@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.Extensions.DependencyModel;
 using Silk.NET.Core.Attributes;
 using Silk.NET.Core.Native;
@@ -26,7 +27,9 @@ namespace Silk.NET.OpenAL.Extensions
         /// <typeparam name="TContextExtension">The extension type.</typeparam>
         /// <returns>The extension.</returns>
         /// <exception cref="ExtensionNotSupportedException">Thrown if the API doesn't support the extension.</exception>
-        internal static TContextExtension LoadContextExtension<TContextExtension>(ALContext baseApi)
+        internal static TContextExtension LoadContextExtension
+            <[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TContextExtension>
+            (ALContext baseApi)
             where TContextExtension : NativeExtension<ALContext>
         {
             return baseApi.IsExtensionPresent(ExtensionAttribute.GetExtensionAttribute(typeof(TContextExtension)).Name)

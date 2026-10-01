@@ -138,7 +138,9 @@ namespace Silk.NET.OpenAL
             "This method has been deprecated and will be removed in Silk.NET 3.0. " +
             "Please use TryGetExtension instead."
         )]
-        public unsafe TContextExtension GetExtension<TContextExtension>(Device* device)
+        public unsafe TContextExtension GetExtension
+            <[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors)] TContextExtension>
+            (Device* device)
             where TContextExtension : ContextExtensionBase
         {
             return ALExtensionLoader.LoadContextExtension<TContextExtension>(this);

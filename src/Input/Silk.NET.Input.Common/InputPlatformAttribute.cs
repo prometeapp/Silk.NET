@@ -3,6 +3,7 @@
 
 using System;
 using System.ComponentModel;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Silk.NET.Input
 {
@@ -17,7 +18,15 @@ namespace Silk.NET.Input
         /// Creates a <see cref="InputPlatformAttribute"/> using the given type.
         /// </summary>
         /// <param name="type">The <see cref="IInputPlatform"/> type.</param>
-        public InputPlatformAttribute(Type type)
+        public InputPlatformAttribute
+        (
+            [DynamicallyAccessedMembers
+            (
+                DynamicallyAccessedMemberTypes.PublicParameterlessConstructor
+                | DynamicallyAccessedMemberTypes.NonPublicConstructors
+            )]
+            Type type
+        )
         {
             Type = type;
         }
@@ -25,6 +34,11 @@ namespace Silk.NET.Input
         /// <summary>
         /// The <see cref="IInputPlatform"/> type.
         /// </summary>
+        [DynamicallyAccessedMembers
+        (
+            DynamicallyAccessedMemberTypes.PublicParameterlessConstructor
+            | DynamicallyAccessedMemberTypes.NonPublicConstructors
+        )]
         public Type Type { get; }
     }
 }
