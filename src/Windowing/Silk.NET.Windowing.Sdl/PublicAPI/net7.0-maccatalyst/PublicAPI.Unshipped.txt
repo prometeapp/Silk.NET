@@ -1,2 +1,0 @@
-#nullable enable
-static Silk.NET.Windowing.Sdl.iOS.SilkMobile.IsRunning.get -> bool

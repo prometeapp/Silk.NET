@@ -35,9 +35,9 @@ dotnet_style_qualification_for_property = false:warning
 dotnet_style_require_accessibility_modifiers = for_non_interface_members:hint
 csharp_style_inlined_variable_declaration = true:hint
 dotnet_sort_system_directives_first = true
-dotnet_public_api_analyzer.require_api_files = true
-dotnet_diagnostic.RS0016.severity = error
-dotnet_diagnostic.RS0017.severity = error
+dotnet_public_api_analyzer.require_api_files = false
+dotnet_diagnostic.RS0016.severity = none  # Public API analyzer disabled in this fork
+dotnet_diagnostic.RS0017.severity = none  # Public API analyzer disabled in this fork
 
 # we should care more about this one day
 dotnet_diagnostic.RS0041.severity = warning

@@ -1,2 +1,7 @@
 <Project>
+    <PropertyGroup>
+        <!-- Single source of truth for the target framework of this fork.
+             Bump this one value to retarget the whole repository. -->
+        <SilkTargetFramework>net10.0</SilkTargetFramework>
+    </PropertyGroup>
 </Project>

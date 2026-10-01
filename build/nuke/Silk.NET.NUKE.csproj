@@ -2,7 +2,12 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net7.0</TargetFramework>
+    <!-- Deliberately NOT $(SilkTargetFramework): Nuke.Common 6.3.0 uses
+         BinaryFormatter, which was removed outright in .NET 9, so the build
+         host cannot run on net10.0. This is build tooling and is never
+         shipped, so its TFM is independent of the libraries'. Revisit when
+         upgrading Nuke.Common. -->
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace></RootNamespace>
     <NoWarn>CS0649;CS0169</NoWarn>
     <NukeRootDirectory>..\..</NukeRootDirectory>

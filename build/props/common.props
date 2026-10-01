@@ -6,6 +6,11 @@
         <SilkSourceLinkExempt>true</SilkSourceLinkExempt>
         <SilkPublicApiExempt>true</SilkPublicApiExempt>
     </PropertyGroup>
+    <!-- The public API analyzer is disabled in this fork: its API surface is
+         expected to change freely, so RS0016/RS0017 are pure friction. -->
+    <PropertyGroup>
+        <SilkPublicApiExempt>true</SilkPublicApiExempt>
+    </PropertyGroup>
     <!-- Core properties -->
     <PropertyGroup>
         <PackageLicenseExpression>MIT</PackageLicenseExpression>
@@ -60,12 +65,13 @@
         </Description>
         <CheckEolWorkloads>false</CheckEolWorkloads>
     </PropertyGroup>
-    <PropertyGroup Condition="$(TargetFramework.StartsWith('net6')) or $(TargetFramework.StartsWith('net7')) or $(TargetFramework.StartsWith('net8'))">
+    <PropertyGroup Condition="'$(TargetFramework)' == '$(SilkTargetFramework)'">
         <IsTrimmable>true</IsTrimmable>
         <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
         <EnableAotAnalyzer>true</EnableAotAnalyzer>
         <EnableSingleFileAnalyzer>true</EnableSingleFileAnalyzer>
         <TrimMode>full</TrimMode>
+        <IsAotCompatible>true</IsAotCompatible>
     </PropertyGroup>
     <!-- Date/time based versioning (mainly used by natives) -->
     <Target Name="SilkAddDateTime" Condition="'$(SilkGitDirForVersion)' != '' and Exists('$(SilkGitDirForVersion)/.git')">

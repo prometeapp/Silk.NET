@@ -129,7 +129,7 @@ namespace Silk.NET.BuildTools.Bind
             csproj.WriteLine();
             csproj.WriteLine("  <PropertyGroup>");
             csproj.WriteLine
-                ("    <TargetFrameworks>netstandard2.0;netstandard2.1;netcoreapp3.1;net5.0</TargetFrameworks>");
+                ("    <TargetFramework>$(SilkTargetFramework)</TargetFramework>");
             csproj.WriteLine("    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>");
             csproj.WriteLine("    <LangVersion>preview</LangVersion>");
             csproj.WriteLine("  </PropertyGroup>");

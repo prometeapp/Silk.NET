@@ -10,7 +10,7 @@
     <PropertyGroup>
         <TargetsForTfmSpecificContentInPackage>$(TargetsForTfmSpecificContentInPackage);SilkGenerateILLinkTargets</TargetsForTfmSpecificContentInPackage>
     </PropertyGroup>
-    <Target Name="SilkGenerateILLinkTargets" Condition="$(TargetFramework.Contains('net6')) or $(TargetFramework.Contains('net7')) or $(TargetFramework.Contains('net8'))">
+    <Target Name="SilkGenerateILLinkTargets" Condition="'$(TargetFramework)' == '$(SilkTargetFramework)'">
         <GetNuGetShortFolderName TargetFrameworkMoniker="$(TargetFrameworkMoniker)" TargetPlatformMoniker="$(TargetPlatformMoniker)">
             <Output TaskParameter="NuGetShortFolderName" PropertyName="_SilkNuGetShortFolderName" />
         </GetNuGetShortFolderName>
@@ -40,7 +40,7 @@
             <TfmSpecificPackageFile Include="@(SilkGeneratedTargetFile)" Link="buildTransitive/$(_SilkNuGetShortFolderName)/$(PackageId).targets" Pack="true" PackagePath="buildTransitive/$(_SilkNuGetShortFolderName)/$(PackageId).targets" />
         </ItemGroup>
     </Target>
-    <Target Name="SilkGenerateILLinkSubs" Condition="$(TargetFramework.Contains('net6')) or $(TargetFramework.Contains('net7')) or $(TargetFramework.Contains('net8'))">
+    <Target Name="SilkGenerateILLinkSubs" Condition="'$(TargetFramework)' == '$(SilkTargetFramework)'">
         <PropertyGroup>
             <SilkGeneratedILLinkPath>$(IntermediateOutputPath)$(TargetFramework)/ILLink.Substitutions.xml</SilkGeneratedILLinkPath>
         </PropertyGroup>

@@ -1,4 +1,5 @@
 <Project>
+    <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
     <PropertyGroup>
         <SilkDescription>This package contains bindings for the low-level, high-throughput Vulkan graphics and compute API.</SilkDescription>
     </PropertyGroup>
