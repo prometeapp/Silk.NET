@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -21,10 +22,41 @@ namespace Silk.NET.Windowing
         private const string SdlBackendName = "SdlPlatform";
         private const string FallbackWindowClass = "Silk.NET";
 
+        /// <summary>
+        /// The name of the feature switch that controls <see cref="ReflectionBackendDiscoveryEnabled"/>.
+        /// </summary>
+        private const string ReflectionBackendDiscoverySwitch
+            = "Silk.NET.Windowing.EnableReflectionBackendDiscovery";
+
         private static List<Type> _platformsKeys = new List<Type>();
         private static List<IWindowPlatform> _platformsValues = new List<IWindowPlatform>();
 
         private static bool _initializedFirstPartyPlatforms = false;
+
+        /// <summary>
+        /// Gets a value indicating whether the first-party backends may be discovered by loading
+        /// their assemblies by name and reading their <see cref="WindowPlatformAttribute"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Defaults to <c>true</c>, so runtime behaviour is unchanged unless you opt out.
+        /// </para>
+        /// <para>
+        /// The trimmer cannot see through <see cref="Assembly.Load(string)"/>, so a trimmed or
+        /// AOT-compiled app should register its backend explicitly - <c>GlfwWindowing.Use()</c>
+        /// or <c>SdlWindowing.Use()</c> - and turn this off. Setting the feature switch to
+        /// <c>false</c> at publish time lets the linker fold this to a constant and drop the
+        /// reflection path entirely:
+        /// </para>
+        /// <code>
+        /// &lt;RuntimeHostConfigurationOption
+        ///     Include="Silk.NET.Windowing.EnableReflectionBackendDiscovery"
+        ///     Value="false" Trim="true" /&gt;
+        /// </code>
+        /// </remarks>
+        [FeatureSwitchDefinition(ReflectionBackendDiscoverySwitch)]
+        internal static bool ReflectionBackendDiscoveryEnabled
+            => !AppContext.TryGetSwitch(ReflectionBackendDiscoverySwitch, out var enabled) || enabled;
 
         public static string DefaultWindowClass { get; }
 
@@ -78,7 +110,11 @@ namespace Silk.NET.Windowing
             {
                 if (!_initializedFirstPartyPlatforms)
                 {
-                    DoLoadFirstPartyPlatformsViaReflection();
+                    if (ReflectionBackendDiscoveryEnabled)
+                    {
+                        DoLoadFirstPartyPlatformsViaReflection();
+                    }
+
                     _initializedFirstPartyPlatforms = true;
                 }
 

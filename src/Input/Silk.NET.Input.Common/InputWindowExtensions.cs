@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Silk.NET.Windowing;
 
@@ -24,7 +25,11 @@ namespace Silk.NET.Input
             {
                 if (!_initializedFirstPartyPlatforms)
                 {
-                    DoLoadFirstPartyPlatformsViaReflection();
+                    if (ReflectionBackendDiscoveryEnabled)
+                    {
+                        DoLoadFirstPartyPlatformsViaReflection();
+                    }
+
                     _initializedFirstPartyPlatforms = true;
                 }
 
@@ -33,6 +38,37 @@ namespace Silk.NET.Input
         }
 
         private static bool _initializedFirstPartyPlatforms = false;
+
+        /// <summary>
+        /// The name of the feature switch that controls <see cref="ReflectionBackendDiscoveryEnabled"/>.
+        /// </summary>
+        private const string ReflectionBackendDiscoverySwitch
+            = "Silk.NET.Input.EnableReflectionBackendDiscovery";
+
+        /// <summary>
+        /// Gets a value indicating whether the first-party input backends may be discovered by
+        /// loading their assemblies by name and reading their <see cref="InputPlatformAttribute"/>.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Defaults to <c>true</c>, so runtime behaviour is unchanged unless you opt out.
+        /// </para>
+        /// <para>
+        /// The trimmer cannot see through <see cref="Assembly.Load(string)"/>, so a trimmed or
+        /// AOT-compiled app should register its backend explicitly - <c>GlfwInput.Use()</c> or
+        /// <c>SdlInput.Use()</c> - and turn this off. Setting the feature switch to <c>false</c>
+        /// at publish time lets the linker fold this to a constant and drop the reflection path
+        /// entirely:
+        /// </para>
+        /// <code>
+        /// &lt;RuntimeHostConfigurationOption
+        ///     Include="Silk.NET.Input.EnableReflectionBackendDiscovery"
+        ///     Value="false" Trim="true" /&gt;
+        /// </code>
+        /// </remarks>
+        [FeatureSwitchDefinition(ReflectionBackendDiscoverySwitch)]
+        internal static bool ReflectionBackendDiscoveryEnabled
+            => !AppContext.TryGetSwitch(ReflectionBackendDiscoverySwitch, out var enabled) || enabled;
 
         public static void ShouldLoadFirstPartyPlatforms(bool shouldLoad)
         {
