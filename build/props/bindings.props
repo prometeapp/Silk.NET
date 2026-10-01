@@ -46,7 +46,9 @@
         </PropertyGroup>
         <ItemGroup Condition="'@(SilkPInvokeOverride)' != ''">
             <SilkGeneratedILLinkLine Include="&lt;linker&gt;" />
-            <SilkGeneratedILLinkLine Include="&lt;assembly fullname=&quot;$(PackageId)&quot;&gt;" />
+            <!-- substitutions が対象にするのはアセンブリなので PackageId ではなく AssemblyName。
+                 パッケージ ID は Promete.Silk.* でアセンブリ名は Silk.NET.* なのでズレる。 -->
+            <SilkGeneratedILLinkLine Include="&lt;assembly fullname=&quot;$(AssemblyName)&quot;&gt;" />
             <SilkGeneratedILLinkLine Include="&lt;type fullname=&quot;SilkTouchRuntimeConfiguration&quot;&gt;" />
             <SilkGeneratedILLinkLine Include="&lt;method signature=&quot;System.Boolean get_HasLinkTimeSubstitutions()&quot; body=&quot;stub&quot; value=&quot;true&quot; /&gt;" />
             <SilkGeneratedILLinkLine Include="&lt;method signature=&quot;System.Boolean get_$([System.String]::Copy('%(SilkPInvokeOverride.SilkClass)').Replace('.', ''))PInvokeOverride%(SilkPInvokeOverride.Identity)()&quot; body=&quot;stub&quot; value=&quot;true&quot; feature=&quot;$([System.String]::Copy('%(SilkPInvokeOverride.SilkClass)').Replace('.', '_').ToUpper())_ENABLE_PINVOKE_OVERRIDE_%(SilkPInvokeOverride.Identity)&quot; featurevalue=&quot;true&quot; /&gt;" />
