@@ -21,11 +21,15 @@ partial class Build
     [Parameter("NuGet password")] readonly string NugetPassword;
     static string PackageDirectory => RootDirectory / "build" / "output_packages";
 
+    // パッケージ ID は Promete.Silk.*。ここを ID と合わせないと push 対象が
+    // 空のまま成功してしまう。
+    const string PackagePrefix = "Promete.Silk.";
+
     static IEnumerable<string> Packages => Directory.GetFiles(PackageDirectory, "*.nupkg")
-        .Where(x => Path.GetFileName(x).StartsWith("Silk.NET") || Path.GetFileName(x).StartsWith("Ultz.Native"));
+        .Where(x => Path.GetFileName(x).StartsWith(PackagePrefix));
 
     static IEnumerable<string> SymbolPackages => Directory.GetFiles(PackageDirectory, "*.snupkg")
-        .Where(x => Path.GetFileName(x).StartsWith("Silk.NET") || Path.GetFileName(x).StartsWith("Ultz.Native"));
+        .Where(x => Path.GetFileName(x).StartsWith(PackagePrefix));
 
     Target PushToNuGet => CommonTarget
     (
