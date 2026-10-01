@@ -7,6 +7,12 @@
         <IsPackable>false</IsPackable>
 
         <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+
+        <!-- RID を指定するとネイティブアセットが出力直下に展開され、
+             BaseDirectoryResolver が見つけられる。dotnet test では
+             DependencyContext がテストホストのものになるため
+             runtimes/<rid>/native のままでは解決できない。 -->
+        <RuntimeIdentifier>$(NETCoreSdkRuntimeIdentifier)</RuntimeIdentifier>
     </PropertyGroup>
 
     <ItemGroup>
