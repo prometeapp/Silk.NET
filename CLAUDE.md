@@ -2,50 +2,126 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## What this fork is
+
+A fork of dotnet/Silk.NET, pruned to the subsystems one game engine needs and
+retargeted to **.NET 10 only**, so it can rely on modern trimming and
+NativeAOT. Upstream 2.x is in maintenance mode and still targets
+netstandard2.0/netcoreapp3.1/net5.0, which blocks both.
+
+Kept: Core, Maths, Input, Windowing, OpenAL, OpenGL (core profile only),
+Vulkan, and the OpenGL ImGui extension — 86 projects. Removed: OpenXR,
+OpenCL, WebGPU, Assimp, SPIRV/shaderc, the DirectX family, OpenGL
+Legacy/ES/WGL, Lab experiments, Templates, and 13 of the 15 native packages.
+
+Do not re-add upstream subsystems or TFMs without being asked.
+
+## Target framework
+
+The TFM lives in **one** place: `SilkTargetFramework` in the root
+`Directory.Build.props`. Every csproj reads `$(SilkTargetFramework)`, and
+retargeting the repo is a one-line change there.
+
+The per-group `src/*/Directory.Build.props` files do **not** chain to the
+parent by MSBuild default, so each one explicitly imports it via
+`GetPathOfFileAbove`. A new group directory needs that import or its projects
+will have no TargetFramework.
+
+Two deliberate exceptions, commented in place:
+
+- `src/Core/Silk.NET.SilkTouch` stays `netstandard2.0` — Roslyn loads source
+  generators into the compiler, so it cannot be net10.0.
+- `build/nuke/Silk.NET.NUKE.csproj` stays `net8.0` — Nuke.Common 6.3.0 uses
+  `BinaryFormatter`, which .NET 9 **removed outright**, so the build host
+  cannot run on net10.0. (`EnableUnsafeBinaryFormatterSerialization` does not
+  help; the API is gone, not just disabled.) Upgrading Nuke.Common would lift
+  this.
+
+Neither is shipped, so neither affects trimming or AOT.
+
+Conditions that need to apply only to the shipped libraries are written as
+`Condition="'$(TargetFramework)' == '$(SilkTargetFramework)'"` rather than
+matching TFM name prefixes — upstream gated the trim/AOT properties on
+`net6`/`net7`/`net8` and they silently stopped applying on retarget.
+
+## Prerequisites
+
+- .NET 10 SDK (`global.json` pins 10.0.100, `rollForward: major`)
+- .NET 8 **runtime** — needed to run the NUKE build host
+
+No Android/iOS workloads, no JDK, no Android SDK. Submodules are only needed
+for the native packages and bindings regeneration.
+
 ## Build system
 
 All builds go through NUKE. Use the bootstrap scripts, not a global `nuke` tool:
 
 - Build: `./build.sh` (default target is `Compile`)
-- Test: `./build.sh Test --skip Clean Restore Compile` (CI's exact invocation; runs `dotnet test` per `*.Tests` project)
+- Test: `./build.sh Test --skip Clean Restore Compile` (CI's invocation; runs `dotnet test` per `*.Tests` project)
 - Pack: `./build.sh Pack` → `build/output_packages`
 - List targets: `./build.sh --plan`
 
 Notes:
 - MSBuild output is filtered to `/clp:errorsonly` unless you pass `--warnings`, so **warnings are invisible by default**.
-- `Prerequisites` runs before every target; it may install the `android` workload when `--native` is passed.
-- `Directory.Build.props` / `.targets` at the root are intentionally empty. Shared settings come from explicit imports at the bottom of each csproj: `build/props/common.props` (tools) or `build/props/bindings.props` (generated binding projects).
-- `global.json` pins SDK 8.0.100 with `rollForward: major`. Full native/Android builds additionally need .NET 6 + 7 SDKs, JDK 11+, and the Android SDK/NDK (see README).
+- `Prerequisites` runs before every target.
+- `Directory.Build.targets` at the root is intentionally empty. Shared settings come from explicit imports at the bottom of each csproj: `build/props/common.props` (tools) or `build/props/bindings.props` (generated binding projects).
 
-## Subset solutions (important)
+### Subset solutions
 
-`Silk.NET.sln` is ~348 KB and slow to load. Generate a subset instead:
+`./build.sh Sln --projects opengl silk.net.vulkan` writes the gitignored
+`Silk.NET.gen.sln`. **While that file exists, every subsequent NUKE run uses
+it instead of `Silk.NET.sln`** unless you pass `--all`. Remove it with
+`./build.sh Clean --sln`. Less essential than upstream now that the solution
+is 86 projects rather than 269, but the override gotcha is unchanged.
 
-```
-./build.sh Sln --projects opengl silk.net.vulkan core.win32extras
-```
+### Solution membership
 
-This writes the gitignored `Silk.NET.gen.sln`. **While that file exists, every subsequent NUKE run uses it instead of `Silk.NET.sln`** unless you pass `--all`. Remove it with `./build.sh Clean --sln` before running a full build.
+Every `*.csproj` outside `build/submodules` must be in `Silk.NET.sln`.
+`./build.sh ValidateSolution` checks this and prints the
+`dotnet sln Silk.NET.sln add <path>` commands to fix it. Genuine exceptions go
+in `AllowedExclusions` in `build/nuke/Build.ReviewHelpers.cs`.
 
 ## Generated bindings — never hand-edit
 
-There are ~10,800 committed `*.gen.cs` files under `src/`. To change them, edit `generator.json` (or `src/Core/Silk.NET.BuildTools`) and run `./build.sh RegenerateBindings`. Keep `.gen.cs` churn in a separate PR from behavioral changes.
+`*.gen.cs` files are committed. To change them, edit `generator.json` or
+`src/Core/Silk.NET.BuildTools`, then run `./build.sh RegenerateBindings`.
+Keep `.gen.cs` churn in a separate commit from behavioral changes.
 
-`.github/workflows/bindings-regeneration.yml` keeps a submodule list that must stay in sync with `generator.json` — update both together.
+`generator.json` holds 6 binder tasks: OpenGL, Vulkan, VulkanVideo, SDL, Core,
+Win32Extras. **Do not re-add the pruned tasks** — regenerating would recreate
+the deleted projects.
 
-## Public API gate
+`src/Core/Silk.NET.BuildTools/Bind/ProjectWriter.cs` emits the csproj for each
+generated project, including its `<TargetFramework>`; it must keep emitting
+`$(SilkTargetFramework)` or regeneration will revert the retarget.
 
-`RS0016` (undeclared public API) and `RS0017` (removed public API) are **errors**. After adding or changing public API:
+Only `build/submodules/SDL` is needed to regenerate bindings. The submodule
+list in `.github/workflows/bindings-regeneration.yml` must stay in sync with
+`generator.json`.
 
-```
-./build.sh DeclareApi   # populates PublicAPI.Unshipped.txt
-```
+## Trim / NativeAOT
 
-CI runs `EnsureApiDeclared` (the same `dotnet format analyzers` pass with `--verify-no-changes`) and fails if those files are stale. `./build.sh ShipApi` promotes Unshipped → Shipped; only do that at release time.
+This is the point of the fork. `common.props` sets `IsTrimmable`,
+`IsAotCompatible`, `TrimMode=full` and the trim/AOT/single-file analyzers for
+every shipped project; `bindings.props` generates `ILLink.Substitutions.xml`
+and the per-package P/Invoke-override `.targets`.
 
-## Solution membership
+Known remaining blockers — reflection-based platform discovery that will fail
+under NativeAOT:
 
-Every `*.csproj` outside `build/submodules` must be in `Silk.NET.sln`. `./build.sh ValidateSolution` checks this and prints the `dotnet sln Silk.NET.sln add <path>` commands to fix it. Genuine exceptions go in `AllowedExclusions` in `build/nuke/Build.ReviewHelpers.cs`.
+- `src/Windowing/Silk.NET.Windowing.Common/Window.cs` — `Assembly.Load` plus `Activator.CreateInstance` to find `IWindowPlatform` implementations
+- `src/Input/Silk.NET.Input.Common/InputWindowExtensions.cs` — same pattern for `IInputPlatform`
+- `src/OpenAL/Silk.NET.OpenAL` — `Activator.CreateInstance` in the extension loaders (`AL.cs`, `ALContext.cs`, `Extensions/ALExtensionLoader.cs`)
+
+These need replacing with explicit registration or source generation.
+
+## Public API analyzer — disabled
+
+`RS0016`/`RS0017` are set to `none` and `SilkPublicApiExempt` is true globally
+in `common.props`; the per-TFM `PublicAPI/*.txt` files are deleted. This fork
+expects to break API freely, so the gate was only friction. The NUKE targets
+`DeclareApi`, `ShipApi` and `EnsureApiDeclared` still exist but are now no-ops.
+Do not re-enable without being asked.
 
 ## Code style (deviations from .NET defaults)
 
@@ -69,18 +145,11 @@ Every new `.cs` file needs this header (`IDE0073` is a warning):
 
 `LangVersion=preview` and `AllowUnsafeBlocks=true` are near-universal.
 
-## Repo etiquette
-
-- `main` is the 2.x maintenance branch (`VersionPrefix 2.23.0` in `build/props/common.props`); 3.0 work lives on `develop/3.0`.
-- API signature and behavioral compatibility must be preserved on `main` — breaking changes are rejected.
-- Style-only PRs are not accepted.
-- `origin` points at `github.com/dotnet/Silk.NET` with no fork remote; CONTRIBUTING.md assumes a fork workflow, so do not push branches to `origin` without checking.
-- See @CONTRIBUTING.md for the full policy.
-
 ## Gotchas
 
-- **Do not clone submodules recursively.** They are unnecessary for a normal build; only native and bindings-regeneration targets need them (`git submodule update --init --depth 0`).
-- Editing the root `README.md` changes shipped NuGet package descriptions — `common.props` generates the package README by substituting marker comments in it.
-- `src/Native/*` packages still ship legacy `Ultz.Native.*` package IDs despite `Silk.NET.*` folder names.
-- Build-related env vars: `PUSHABLE_GITHUB_TOKEN` (bindings/API PR creation), `GITHUB_TOKEN`, `ANDROID_HOME` / `AndroidSdkDirectory`.
+- **Do not clone submodules recursively.** Only `SDL` and `glfw` are still used (the two surviving native packages, plus SDL for bindings).
+- Editing the root `README.md` changes shipped NuGet package descriptions — `common.props` generates the package README by substituting marker comments in it. The README still describes upstream's full API surface.
+- The two `src/Native/*` packages still ship legacy `Ultz.Native.*` package IDs despite `Silk.NET.*` folder names.
+- `VersionPrefix` is still upstream's `2.23.0` in `build/props/common.props`, and `common.props`/`RepositoryUrl` still point at dotnet/Silk.NET.
+- `build/nuke/Native/*.cs` and several NUKE targets (`Angle`, `Assimp`, `Dxvk`, `MoltenVK`, `OpenALSoft`, `Shaderc`, `SPIRVCross`, `SPIRVReflect`, `SwiftShader`, `Vkd3d`, `VulkanLoader`, `Wgpu`) still exist for packages removed in the prune. They compile but will fail if invoked.
 - `.vscode/launch.json` is stale (references `netcoreapp3.0` tutorial paths that no longer exist).
