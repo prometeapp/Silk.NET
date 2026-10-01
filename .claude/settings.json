@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_response.filePath // .tool_input.file_path' | { read -r p; case \"$p\" in *.gen.cs) ;; *.cs) [ -f \"$p\" ] && { head -5 \"$p\" | grep -q \"The .NET Foundation licenses this file to you under the MIT license.\" || printf '{\"systemMessage\":\"Missing MIT license header (IDE0073): %s\"}\\n' \"$p\"; };; esac; } 2>/dev/null || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
