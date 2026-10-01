@@ -2,6 +2,5 @@
     <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
     <PropertyGroup>
         <SilkDescription>Core functionality for the Silk.NET library.</SilkDescription>
-        <SilkExtendedDescription>You likely never need to reference this package yourself, nor is it generally useful without another Silk.NET package.</SilkExtendedDescription>
     </PropertyGroup>
 </Project>

@@ -7,7 +7,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Native\Silk.NET.SDL.Native\Silk.NET.SDL.Native.csproj" />
+    <!-- 中身は upstream と同一バイナリなのでフォークせず本家を使う -->
+    <PackageReference Include="Ultz.Native.SDL" Version="2.32.10" />
   </ItemGroup>
 
   <ItemGroup>

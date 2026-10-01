@@ -10,9 +10,9 @@ NativeAOT. Upstream 2.x is in maintenance mode and still targets
 netstandard2.0/netcoreapp3.1/net5.0, which blocks both.
 
 Kept: Core, Maths, Input, Windowing, OpenAL, OpenGL (core profile only),
-Vulkan, and the OpenGL ImGui extension — 86 projects. Removed: OpenXR,
-OpenCL, WebGPU, Assimp, SPIRV/shaderc, the DirectX family, OpenGL
-Legacy/ES/WGL, Lab experiments, Templates, and 13 of the 15 native packages.
+Vulkan, SPIRV/Shaderc, and the OpenGL ImGui extension. Removed: OpenXR,
+OpenCL, WebGPU, Assimp, the DirectX family, OpenGL Legacy/ES/WGL, Lab
+experiments, Templates, and every native binary package.
 
 Do not re-add upstream subsystems or TFMs without being asked.
 
@@ -52,6 +52,29 @@ matching TFM name prefixes — upstream gated the trim/AOT properties on
 No Android/iOS workloads, no JDK, no Android SDK. Submodules are only needed
 for the native packages and bindings regeneration.
 
+## Packaging
+
+Package IDs are **`Promete.Silk.*`**, derived in `common.props` by rewriting
+`$(MSBuildProjectName)`. Upstream's `Silk.NET.*` prefix is reserved on
+nuget.org, so pushing under it is impossible. **Assembly names and namespaces
+stay `Silk.NET.*`**, so consuming source needs no changes — only the
+`PackageReference` IDs differ.
+
+Version is `$(VersionPrefix)-prmt.$(SilkForkVersion)`, currently
+`2.23.0-prmt.1.0.0`. `VersionPrefix` tracks the upstream release this forked
+from; bump `SilkForkVersion` for fork changes. The prerelease separator must
+stay a dot — with a hyphen, SemVer compares `prmt-10` below `prmt-2`.
+
+`SilkPublishedProjects` in `common.props` lists what gets packed. Projects
+outside it still build and test but produce no package; add a project name
+there to start shipping it.
+
+**No native binary packages are forked.** The managed bindings reference
+upstream's native packages (`Ultz.Native.GLFW`, `Ultz.Native.SDL`,
+`Silk.NET.Shaderc.Native`, `Silk.NET.SPIRV.{Cross,Reflect}.Native`), whose
+contents are unmodified. Native assets only reach a consumer through
+`PackageReference`, never `ProjectReference`.
+
 ## Build system
 
 All builds go through NUKE. Use the bootstrap scripts, not a global `nuke` tool:
@@ -87,16 +110,17 @@ in `AllowedExclusions` in `build/nuke/Build.ReviewHelpers.cs`.
 `src/Core/Silk.NET.BuildTools`, then run `./build.sh RegenerateBindings`.
 Keep `.gen.cs` churn in a separate commit from behavioral changes.
 
-`generator.json` holds 6 binder tasks: OpenGL, Vulkan, VulkanVideo, SDL, Core,
-Win32Extras. **Do not re-add the pruned tasks** — regenerating would recreate
-the deleted projects.
+`generator.json` holds 10 binder tasks: OpenGL, Vulkan, VulkanVideo, SDL, Core,
+Win32Extras, shaderc, SPIRV, SPIRVReflect, SPIRVCross. **Do not re-add the
+pruned tasks** — regenerating would recreate the deleted projects.
 
 `src/Core/Silk.NET.BuildTools/Bind/ProjectWriter.cs` emits the csproj for each
 generated project, including its `<TargetFramework>`; it must keep emitting
 `$(SilkTargetFramework)` or regeneration will revert the retarget.
 
-Only `build/submodules/SDL` is needed to regenerate bindings. The submodule
-list in `.github/workflows/bindings-regeneration.yml` must stay in sync with
+Regenerating bindings needs `build/submodules/SDL`, `shaderc`,
+`SPIRV-Headers`, `SPIRV-Reflect` and `SPIRV-Cross`. The submodule list in
+`.github/workflows/bindings-regeneration.yml` must stay in sync with
 `generator.json`.
 
 ## Trim / NativeAOT
@@ -148,8 +172,6 @@ Every new `.cs` file needs this header (`IDE0073` is a warning):
 ## Gotchas
 
 - **Do not clone submodules recursively.** Only `SDL` and `glfw` are still used (the two surviving native packages, plus SDL for bindings).
-- Editing the root `README.md` changes shipped NuGet package descriptions — `common.props` generates the package README by substituting marker comments in it. The README still describes upstream's full API surface.
-- The two `src/Native/*` packages still ship legacy `Ultz.Native.*` package IDs despite `Silk.NET.*` folder names.
-- `VersionPrefix` is still upstream's `2.23.0` in `build/props/common.props`, and `common.props`/`RepositoryUrl` still point at dotnet/Silk.NET.
+- The root `README.md` still describes upstream's full API surface. It no longer feeds package metadata, so it is only misleading to people reading the repo.
 - `build/nuke/Native/*.cs` and several NUKE targets (`Angle`, `Assimp`, `Dxvk`, `MoltenVK`, `OpenALSoft`, `Shaderc`, `SPIRVCross`, `SPIRVReflect`, `SwiftShader`, `Vkd3d`, `VulkanLoader`, `Wgpu`) still exist for packages removed in the prune. They compile but will fail if invoked.
 - `.vscode/launch.json` is stale (references `netcoreapp3.0` tutorial paths that no longer exist).

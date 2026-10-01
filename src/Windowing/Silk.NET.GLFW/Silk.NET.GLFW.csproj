@@ -7,7 +7,8 @@
     </PropertyGroup>
     
     <ItemGroup>
-      <ProjectReference Include="..\..\Native\Silk.NET.GLFW.Native\Silk.NET.GLFW.Native.csproj" />
+      <!-- 中身は upstream と同一バイナリなのでフォークせず本家を使う -->
+      <PackageReference Include="Ultz.Native.GLFW" Version="3.4.0" />
     </ItemGroup>
 
     <Import Project="..\..\..\build\props\bindings.props" />

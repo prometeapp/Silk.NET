@@ -58,7 +58,6 @@ Proud to be an official project under the benevolent [.NET Foundation](https://d
 
 </div>
 
-<!-- Package description inserted here automatically. -->
 
 <h1 align="center">Features</h1>
 
