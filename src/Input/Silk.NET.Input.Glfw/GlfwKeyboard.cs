@@ -10,7 +10,7 @@ namespace Silk.NET.Input.Glfw
 {
     internal class GlfwKeyboard : IKeyboard, IGlfwSubscriber
     {
-        private static readonly Key[] _keys = ((Keys[]) Enum.GetValues(typeof(Keys))).Select
+        private static readonly Key[] _keys = Enum.GetValues<Keys>().Select
                 (ConvertKey)
             .Where(static x => x != Key.Unknown)
             .Distinct()

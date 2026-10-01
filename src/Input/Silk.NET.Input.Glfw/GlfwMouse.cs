@@ -13,7 +13,7 @@ namespace Silk.NET.Input.Glfw
 {
     internal class GlfwMouse : MouseImplementationBase, IGlfwSubscriber, IDisposable
     {
-        private static readonly MouseButton[] _buttons = ((MouseButton[]) Enum.GetValues(typeof(MouseButton)))
+        private static readonly MouseButton[] _buttons = Enum.GetValues<MouseButton>()
             .Where(x => x != (MouseButton) (-1))
             .ToArray();
 
