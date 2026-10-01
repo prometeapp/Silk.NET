@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -99,42 +100,10 @@ namespace Silk.NET.Core.Loader
         };
 
         /// <summary>
-        /// A resolver that returns a path to a file in Silk.NET's <see cref="Assembly.Location"/> and/or
-        /// <see cref="Assembly.CodeBase"/> directory with the given name.
+        /// A resolver that returns a path to a file in Silk.NET's <see cref="Assembly.Location"/> directory with the
+        /// given name.
         /// </summary>
-        public static readonly Func<string, IEnumerable<string>> SilkDirectoryResolver = name =>
-        {
-            try
-            {
-                var asmLocation = typeof(DefaultPathResolver).Assembly.Location;
-                // check that name doesn't have a directory name, we only want raw filenames so that the Path.Combine
-                // doesn't blow up.
-                if (!string.IsNullOrWhiteSpace(Path.GetDirectoryName(name)) && !string.IsNullOrWhiteSpace(asmLocation) && File.Exists(asmLocation))
-                {
-                    asmLocation = Path.GetDirectoryName(asmLocation);
-                    if (asmLocation is not null)
-                    {
-                        return Enumerable.Repeat(Path.Combine(asmLocation, name), 1);
-                    }
-                }
-
-                asmLocation = typeof(DefaultPathResolver).Assembly.CodeBase;
-                if (!string.IsNullOrWhiteSpace(Path.GetDirectoryName(name)) && !string.IsNullOrWhiteSpace(asmLocation) && File.Exists(asmLocation))
-                {
-                    asmLocation = Path.GetDirectoryName(asmLocation);
-                    if (asmLocation is not null)
-                    {
-                        return Enumerable.Repeat(Path.Combine(asmLocation, name), 1);
-                    }
-                }
-            }
-            catch
-            {
-                // not supported on the WASI-SDK
-            }
-
-            return Enumerable.Empty<string>();
-        };
+        public static readonly Func<string, IEnumerable<string>> SilkDirectoryResolver = GetSilkDirectoryPossibilities;
 
         /// <summary>
         /// A resolver that, given an absolute or relative path, searches for a "runtimes" folder in the directory
@@ -249,6 +218,55 @@ namespace Silk.NET.Core.Loader
             }
         }
 
+        [UnconditionalSuppressMessage
+        (
+            "SingleFile", "IL3000",
+            Justification =
+                "Assembly.Location is empty in a single-file or NativeAOT app. That is guarded for, and "
+                + "BaseDirectoryResolver already covers the app directory in those cases, so this resolver "
+                + "simply contributes nothing."
+        )]
+        private static IEnumerable<string> GetSilkDirectoryPossibilities(string name)
+        {
+            try
+            {
+                var asmLocation = typeof(DefaultPathResolver).Assembly.Location;
+                // check that name doesn't have a directory name, we only want raw filenames so that the Path.Combine
+                // doesn't blow up.
+                if (!string.IsNullOrWhiteSpace(Path.GetDirectoryName(name))
+                    && !string.IsNullOrWhiteSpace(asmLocation)
+                    && File.Exists(asmLocation))
+                {
+                    var asmDirectory = Path.GetDirectoryName(asmLocation);
+                    if (asmDirectory is not null)
+                    {
+                        return Enumerable.Repeat(Path.Combine(asmDirectory, name), 1);
+                    }
+                }
+            }
+            catch
+            {
+                // not supported on the WASI-SDK
+            }
+
+            return Enumerable.Empty<string>();
+        }
+
+        [UnconditionalSuppressMessage
+        (
+            "SingleFile", "IL3000",
+            Justification =
+                "Assembly.Location is empty in a single-file or NativeAOT app. Path.GetDirectoryName returns null "
+                + "for it, which TryReadDepsFile treats as 'nothing to read'."
+        )]
+        [UnconditionalSuppressMessage
+        (
+            "SingleFile", "IL3002",
+            Justification =
+                "DependencyContext.Default is null in a single-file or NativeAOT app, and there is no .deps.json "
+                + "to fall back to either. Both are guarded for, and the method then reports failure, which "
+                + "leaves the remaining resolvers to find the library."
+        )]
         private static bool TryLocateNativeAssetFromDeps
         (
             string name,
@@ -263,29 +281,13 @@ namespace Silk.NET.Core.Loader
                 if (defaultContext is null && !(entAsm is null))
                 {
                     var json = new DependencyContextJsonReader();
+                    var depsFileName = entAsm.GetName().Name + ".deps.json";
+
+                    // Probe with File.Exists rather than letting File.OpenRead throw: in a single-file or
+                    // NativeAOT app neither path exists, and this is on the native library load path.
                     var dir = Path.GetDirectoryName(entAsm.Location);
-                    if (dir is not null)
-                    {
-                        defaultContext ??= json.Read
-                        (
-                            File.OpenRead
-                            (
-                                Path.Combine
-                                (
-                                    dir,
-                                    entAsm.GetName().Name + ".deps.json"
-                                )
-                            )
-                        );
-                    }
-                    
-                    defaultContext ??= json.Read
-                    (
-                        File.OpenRead
-                        (
-                            Path.Combine(AppContext.BaseDirectory, entAsm.GetName().Name + ".deps.json")
-                        )
-                    );
+                    defaultContext ??= TryReadDepsFile(json, dir, depsFileName);
+                    defaultContext ??= TryReadDepsFile(json, AppContext.BaseDirectory, depsFileName);
                 }
 
                 if (defaultContext == null)
@@ -339,6 +341,35 @@ namespace Silk.NET.Core.Loader
             }
         }
 
+        private static DependencyContext? TryReadDepsFile
+        (
+            DependencyContextJsonReader json,
+            string? directory,
+            string depsFileName
+        )
+        {
+            if (string.IsNullOrWhiteSpace(directory))
+            {
+                return null;
+            }
+
+            var path = Path.Combine(directory, depsFileName);
+            if (!File.Exists(path))
+            {
+                return null;
+            }
+
+            using var stream = File.OpenRead(path);
+            return json.Read(stream);
+        }
+
+        [UnconditionalSuppressMessage
+        (
+            "SingleFile", "IL3002",
+            Justification =
+                "DependencyContext.Default is null in a single-file or NativeAOT app. GetAllRuntimeIds handles "
+                + "that by falling back to the current RID and its guessed fallbacks."
+        )]
         private static bool TryLocateNativeAssetInRuntimesFolder(string name, string baseFolder, out string? result)
         {
             static bool Check(string name, string ridFolder, out string? result)
@@ -461,6 +492,14 @@ namespace Silk.NET.Core.Loader
                         AddFallbacks(allRiDs, guessedFallbackRid, ctx.RuntimeGraph);
                     }
                 }
+            }
+            else
+            {
+                // No dependency context: single-file and NativeAOT apps don't have one, nor does
+                // net6.0-android. The RID graph is unavailable, but the current RID and its guessed
+                // fallbacks are still enough to probe a runtimes/<rid>/native layout, which previously
+                // wasn't attempted at all in these environments.
+                AddFallbacks(allRiDs, currentRid, Array.Empty<RuntimeFallbacks>());
             }
 
             return allRiDs;
